@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Supplier;
 using Supplier.Business;
 using Supplier.Services;
+using Types;
 
 await Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration(config =>
@@ -14,6 +15,9 @@ await Host.CreateDefaultBuilder(args)
     {
         services.AddSingleton<SupplierBusiness>();
         services.AddSingleton<RabbitMQMessageSender>();
+        // Add services to the container.
+        services.AddSingleton<DatabaseSettings>(Startup.SetupMongoConfig(context.Configuration));
+        services.AddSingleton<NamesRepository>();
         services.AddHostedService<Supplier.Supplier>();
     })
     .RunConsoleAsync();

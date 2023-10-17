@@ -1,5 +1,7 @@
-﻿using Supplier.Services;
-
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Supplier.Services;
+using Types;
 
 namespace Supplier.Business
 {
@@ -15,44 +17,61 @@ namespace Supplier.Business
         #region Services
 
         private readonly RabbitMQMessageSender _rabbitMQMessageSender;
+        private readonly ILogger<SupplierBusiness> _logger;
+        private readonly NamesRepository _namesRepository;
 
         #endregion
 
-        public SupplierBusiness(RabbitMQMessageSender rabbitMQMessageSender)
+        #region Auxiliary Variables
+
+        private readonly string _rabbitQueueName;
+
+        #endregion
+
+        public SupplierBusiness(RabbitMQMessageSender rabbitMQMessageSender, 
+                                IConfiguration configuration, 
+                                ILogger<SupplierBusiness> logger,
+                                NamesRepository namesRepository)
         {
             _sync = new(false, EventResetMode.ManualReset);
             _rabbitMQMessageSender = rabbitMQMessageSender;
+
+            _rabbitQueueName = configuration["RABBITMQ_QUEUENAME"];
+
+            _logger = logger;
+            _namesRepository = namesRepository;
         }
 
 
         public async Task<TaskStatus> Run(CancellationToken cancellationToken)
         {
             _token = cancellationToken;
-            return await Task.Factory.StartNew(() => SendMessages());
+            return await Task.Factory.StartNew(() => SendMessages().Result);
         }
 
-        public TaskStatus SendMessages()
+        public async Task<TaskStatus> SendMessages()
         {
             while (!_token.IsCancellationRequested)
             {
-                string text     = File.ReadAllText("C:\\Users\\gusta\\Meu Drive\\Programação\\C#\\DotNet6\\RabbitQueueManager\\Supplier\\Input\\Inputs.txt");
-                string[] lines  = text.Split('\n');
+                List<NameObject> mongoObjs = await _namesRepository.GetAsync();
+                if(mongoObjs == null || mongoObjs.Count == 0)
+                {
+                    _logger.LogError($"Could not find any objects on mongo");
+                    return TaskStatus.Faulted;
+                }
 
-                foreach(string line in lines)
+                _logger.LogTrace($"Starting parsing lines...");
+
+                foreach(NameObject nameObject in mongoObjs)
                 {
                     _rabbitMQMessageSender.SendMessage(
-                        new Types.BaseMessage()
-                        {
-                            Id              = Guid.NewGuid().ToString(),
-                            MessageCreated  = DateTime.Now,
-                            Content         = line
-                        },
-                        "Names_Queue"
+                        new Types.BaseMessage(nameObject.Nome),
+                        _rabbitQueueName
                     );
                 }
 
-
-                
+                _logger.LogInformation($"Finishing parsing lines...");
+                Thread.Sleep(30000);
             }
 
             _sync.Set();

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using System.Text;
 using System.Text.Json;
@@ -14,11 +15,16 @@ namespace Supplier.Services
         private readonly string _userName;
         private IConnection _connection;
 
-        public RabbitMQMessageSender(IConfiguration configuration)
+        private readonly ILogger<RabbitMQMessageSender> _logger;
+
+
+        public RabbitMQMessageSender(IConfiguration configuration, ILogger<RabbitMQMessageSender> logger)
         {
             _hostName = configuration["RABBITMQ_HOST"];
             _password = configuration["RABBITMQ_PSWD"];
             _userName = configuration["RABBITMQ_USER"];
+
+            _logger = logger;
         }
 
         public void SendMessage(BaseMessage message, string queueName)
@@ -73,7 +79,7 @@ namespace Supplier.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[RabbitMQMessageSender.CreateConnection] Something went wrong creating connection. {ex.Message} :: {ex.StackTrace}");
+                _logger.LogError($"[RabbitMQMessageSender.CreateConnection] Something went wrong creating connection. {ex.Message} :: {ex.StackTrace}");
                 throw;
             }
         }
