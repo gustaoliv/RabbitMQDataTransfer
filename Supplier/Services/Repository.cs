@@ -4,11 +4,11 @@ using Types;
 
 namespace Supplier.Services
 {
-    public class NamesRepository
+    public class Repository
     {
-        private readonly IMongoCollection<NameObject> _collection;
+        private readonly IMongoCollection<PersonObject> _collection;
 
-        public NamesRepository(DatabaseSettings databaseSettings)
+        public Repository(DatabaseSettings databaseSettings)
         {
             var mongoClient = new MongoClient(
                 databaseSettings.ConnectionString);
@@ -16,20 +16,20 @@ namespace Supplier.Services
             var mongoDatabase = mongoClient.GetDatabase(
                 databaseSettings.DatabaseName);
 
-            _collection = mongoDatabase.GetCollection<NameObject>(
+            _collection = mongoDatabase.GetCollection<PersonObject>(
                 databaseSettings.CollectionName);
         }
 
-        public async Task<List<NameObject>> GetAsync() =>
-            await _collection.Find(_ => true).ToListAsync();
+        public async Task<List<PersonObject>> GetAsync() =>
+            await _collection.Find(x => x.Exported == false).ToListAsync();
 
-        public async Task<NameObject?> GetAsync(string id) =>
+        public async Task<PersonObject?> GetAsync(string id) =>
             await _collection.Find(x => x.Id == id).FirstOrDefaultAsync();
 
-        public async Task CreateAsync(NameObject newNameObj) =>
+        public async Task CreateAsync(PersonObject newNameObj) =>
             await _collection.InsertOneAsync(newNameObj);
 
-        public async Task UpdateAsync(string id, NameObject updatedNameObj) =>
+        public async Task UpdateAsync(string id, PersonObject updatedNameObj) =>
             await _collection.ReplaceOneAsync(x => x.Id == id, updatedNameObj);
 
         public async Task RemoveAsync(string id) =>

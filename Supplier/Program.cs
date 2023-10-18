@@ -17,7 +17,7 @@ await Host.CreateDefaultBuilder(args)
         services.AddSingleton<RabbitMQMessageSender>();
         // Add services to the container.
         services.AddSingleton<DatabaseSettings>(Startup.SetupMongoConfig(context.Configuration));
-        services.AddSingleton<NamesRepository>();
+        services.AddSingleton<Repository>();
         services.AddHostedService<Supplier.Supplier>();
     })
     .RunConsoleAsync();

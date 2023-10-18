@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Supplier.Services;
+using System.Text.Json;
 using Types;
 
 namespace Supplier.Business
@@ -18,7 +19,7 @@ namespace Supplier.Business
 
         private readonly RabbitMQMessageSender _rabbitMQMessageSender;
         private readonly ILogger<SupplierBusiness> _logger;
-        private readonly NamesRepository _namesRepository;
+        private readonly Repository _personRepository;
 
         #endregion
 
@@ -31,7 +32,7 @@ namespace Supplier.Business
         public SupplierBusiness(RabbitMQMessageSender rabbitMQMessageSender, 
                                 IConfiguration configuration, 
                                 ILogger<SupplierBusiness> logger,
-                                NamesRepository namesRepository)
+                                Repository namesRepository)
         {
             _sync = new(false, EventResetMode.ManualReset);
             _rabbitMQMessageSender = rabbitMQMessageSender;
@@ -39,7 +40,7 @@ namespace Supplier.Business
             _rabbitQueueName = configuration["RABBITMQ_QUEUENAME"];
 
             _logger = logger;
-            _namesRepository = namesRepository;
+            _personRepository = namesRepository;
         }
 
 
@@ -53,21 +54,26 @@ namespace Supplier.Business
         {
             while (!_token.IsCancellationRequested)
             {
-                List<NameObject> mongoObjs = await _namesRepository.GetAsync();
+                List<PersonObject> mongoObjs = await _personRepository.GetAsync();
                 if(mongoObjs == null || mongoObjs.Count == 0)
                 {
-                    _logger.LogError($"Could not find any objects on mongo");
-                    return TaskStatus.Faulted;
+                    _logger.LogInformation($"Could not find any objects on mongo");
+                    Thread.Sleep(30000);
+                    continue;
                 }
 
                 _logger.LogTrace($"Starting parsing lines...");
 
-                foreach(NameObject nameObject in mongoObjs)
+                foreach(PersonObject personObject in mongoObjs)
                 {
                     _rabbitMQMessageSender.SendMessage(
-                        new Types.BaseMessage(nameObject.Nome),
+                        new Types.BaseMessage(JsonSerializer.Serialize(personObject)),
                         _rabbitQueueName
                     );
+
+                    PersonObject updatedObj = personObject;
+                    updatedObj.Exported     = true;
+                    await _personRepository.UpdateAsync(updatedObj.Id, updatedObj);
                 }
 
                 _logger.LogInformation($"Finishing parsing lines...");
