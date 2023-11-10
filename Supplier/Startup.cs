@@ -14,9 +14,9 @@ namespace Supplier
         {
             DatabaseSettings settings = new DatabaseSettings()
             {
-                ConnectionString    = configuration["MONGO_CONNECTIONSTRING"],
-                DatabaseName        = configuration["MONGO_DATABASENAME"],
-                CollectionName      = configuration["MONGO_COLLECTIONNAME"]
+                ConnectionString    = configuration["CONNECTIONSTRING"],
+                DatabaseName        = configuration["DATABASENAME"],
+                CollectionName      = configuration["COLLECTIONNAME"]
             };
 
             return settings;

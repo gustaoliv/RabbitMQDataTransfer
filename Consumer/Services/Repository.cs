@@ -1,16 +1,12 @@
 ﻿using MongoDB.Driver;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Types;
+
 
 namespace Consumer.Services
 {
     public class Repository
     {
-        private readonly IMongoCollection<PersonObject> _collection;
+        private readonly IMongoCollection<CodeObject> _collection;
 
         public Repository(DatabaseSettings databaseSettings)
         {
@@ -20,23 +16,23 @@ namespace Consumer.Services
             var mongoDatabase = mongoClient.GetDatabase(
                 databaseSettings.DatabaseName);
 
-            _collection = mongoDatabase.GetCollection<PersonObject>(
+            _collection = mongoDatabase.GetCollection<CodeObject>(
                 databaseSettings.CollectionName);
         }
 
-        public async Task<List<PersonObject>> GetAsync() =>
+        public async Task<List<CodeObject>> GetAsync() =>
             await _collection.Find(_ => true).ToListAsync();
 
-        public async Task<PersonObject?> GetAsync(string id) =>
-            await _collection.Find(x => x.Id == id).FirstOrDefaultAsync();
+        public async Task<CodeObject?> GetAsync(int id) =>
+            await _collection.Find(x => x.MT_CODIGO == id).FirstOrDefaultAsync();
 
-        public async Task CreateAsync(PersonObject newNameObj) =>
+        public async Task CreateAsync(CodeObject newNameObj) =>
             await _collection.InsertOneAsync(newNameObj);
 
-        public async Task UpdateAsync(string id, PersonObject updatedNameObj) =>
-            await _collection.ReplaceOneAsync(x => x.Id == id, updatedNameObj);
+        public async Task UpdateAsync(int id, CodeObject updatedNameObj) =>
+            await _collection.ReplaceOneAsync(x => x.MT_CODIGO == id, updatedNameObj);
 
         public async Task RemoveAsync(string id) =>
-            await _collection.DeleteOneAsync(x => x.Id == id);
+            await _collection.DeleteOneAsync(x => x.MT_METODO == id);
     }
 }

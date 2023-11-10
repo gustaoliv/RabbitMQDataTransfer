@@ -19,7 +19,7 @@ namespace Supplier.Business
 
         private readonly RabbitMQMessageSender _rabbitMQMessageSender;
         private readonly ILogger<SupplierBusiness> _logger;
-        private readonly Repository _personRepository;
+        private readonly Repository _repository;
 
         #endregion
 
@@ -32,7 +32,7 @@ namespace Supplier.Business
         public SupplierBusiness(RabbitMQMessageSender rabbitMQMessageSender, 
                                 IConfiguration configuration, 
                                 ILogger<SupplierBusiness> logger,
-                                Repository namesRepository)
+                                Repository repository)
         {
             _sync = new(false, EventResetMode.ManualReset);
             _rabbitMQMessageSender = rabbitMQMessageSender;
@@ -40,7 +40,7 @@ namespace Supplier.Business
             _rabbitQueueName = configuration["RABBITMQ_QUEUENAME"];
 
             _logger = logger;
-            _personRepository = namesRepository;
+            _repository = repository;
         }
 
 
@@ -54,8 +54,8 @@ namespace Supplier.Business
         {
             while (!_token.IsCancellationRequested)
             {
-                List<PersonObject> mongoObjs = await _personRepository.GetAsync();
-                if(mongoObjs == null || mongoObjs.Count == 0)
+                List<CodeObject> mongoObjs = await _repository.GetAsync();
+                if (mongoObjs == null || mongoObjs.Count == 0)
                 {
                     _logger.LogInformation($"Could not find any objects on mongo");
                     Thread.Sleep(30000);
@@ -64,17 +64,21 @@ namespace Supplier.Business
 
                 _logger.LogTrace($"Starting parsing lines...");
 
-                foreach(PersonObject personObject in mongoObjs)
+                int amountSended = 0;
+                foreach(CodeObject codeObject in mongoObjs)
                 {
                     _rabbitMQMessageSender.SendMessage(
-                        new Types.BaseMessage(JsonSerializer.Serialize(personObject)),
+                        new Types.BaseMessage(JsonSerializer.Serialize(codeObject)),
                         _rabbitQueueName
                     );
 
-                    PersonObject updatedObj = personObject;
-                    updatedObj.Exported     = true;
-                    await _personRepository.UpdateAsync(updatedObj.Id, updatedObj);
+                    await _repository.UpdateAsync(codeObject);
+                    amountSended++;
+                    if (amountSended % 200 == 0)
+                        _logger.LogInformation($"Already sent {amountSended} messages");
                 }
+
+                await _repository.SaveChanges();
 
                 _logger.LogInformation($"Finishing parsing lines...");
                 Thread.Sleep(30000);

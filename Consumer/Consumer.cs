@@ -66,7 +66,7 @@ namespace Consumer
             var consumer = new EventingBasicConsumer(_channel);
             consumer.Received += (chanel, evt) =>
             {
-                var content = Encoding.UTF8.GetString(evt.Body.ToArray());
+                var content         = Encoding.UTF8.GetString(evt.Body.ToArray());
                 BaseMessage message = JsonSerializer.Deserialize<BaseMessage>(content);
                 ProcessMessage(message).GetAwaiter().GetResult();
                 _channel.BasicAck(evt.DeliveryTag, false);
@@ -80,44 +80,20 @@ namespace Consumer
         {
             try
             {
-                PersonObject personObj = JsonSerializer.Deserialize<PersonObject>(message.Content);
-                if(personObj == null)
+                CodeObject codeObj = JsonSerializer.Deserialize<CodeObject>(message.Content);
+                if(codeObj == null)
                 {
                     _logger.LogError($"[Consumer.ProcessMessage] Could not deserialize message. {message.Content}");
                     return;
                 }
 
-                _logger.LogInformation($"[Consumer.ProcessMessage] Parsing for person: {personObj.Name}");
-
-                personObj.Id        = null;
-                personObj.Name      = RemoveAccentuation(personObj.Name).ToUpper();
-                personObj.CPF       = personObj.CPF.Replace(".", "").Replace("-", "");
-                personObj.Gender    = personObj.Gender.Equals("Masculino", StringComparison.OrdinalIgnoreCase) ? "M" : "F";
-                personObj.Phone     = personObj.Phone.Replace("(", "").Replace(")", "").Replace("-", "").Replace(" ", "");
-
-                await _repository.CreateAsync(personObj);
+                await _repository.CreateAsync(codeObj);
             }
             catch (Exception ex)
             {
                 _logger.LogError($"[Consumer.ProcessMessage] Unexpected error. {ex.Message} :: {ex.StackTrace}");
                 return;
             }
-        }
-
-        private static string RemoveAccentuation(string texto)
-        {
-            string formD        = texto.Normalize(NormalizationForm.FormD);
-            StringBuilder sb    = new StringBuilder();
-
-            foreach (char letra in formD)
-            {
-                if (CharUnicodeInfo.GetUnicodeCategory(letra) != UnicodeCategory.NonSpacingMark)
-                {
-                    sb.Append(letra);
-                }
-            }
-
-            return sb.ToString();
         }
     }
 }
