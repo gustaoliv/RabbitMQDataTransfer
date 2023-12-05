@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Supplier.Services;
+using System.Diagnostics;
 using System.Text.Json;
 using Types;
 
@@ -64,23 +65,30 @@ namespace Supplier.Business
 
                 _logger.LogTrace($"Starting parsing lines...");
 
+
+                Stopwatch watch = new();
+                watch.Start();
+
                 int amountSended = 0;
                 foreach(CodeObject codeObject in mongoObjs)
                 {
                     _rabbitMQMessageSender.SendMessage(
-                        new Types.BaseMessage(JsonSerializer.Serialize(codeObject)),
-                        _rabbitQueueName
+                        new Types.BaseMessage(JsonSerializer.Serialize(codeObject))
                     );
 
                     await _repository.UpdateAsync(codeObject);
                     amountSended++;
                     if (amountSended % 200 == 0)
-                        _logger.LogInformation($"Already sent {amountSended} messages");
+                        Console.WriteLine($"Already sent {amountSended} messages");
+                        //_logger.LogInformation($"Already sent {amountSended} messages");
                 }
+
+                watch.Stop();
+                _logger.LogInformation($"Finishing parsing lines... After {watch.ElapsedMilliseconds} miliseconds");
+
 
                 await _repository.SaveChanges();
 
-                _logger.LogInformation($"Finishing parsing lines...");
                 Thread.Sleep(30000);
             }
 

@@ -13,35 +13,42 @@ namespace Supplier.Services
         private readonly string _hostName;
         private readonly string _password;
         private readonly string _userName;
+        private readonly string _rabbitQueueName;
         private IConnection _connection;
+        private readonly IModel _channel;
+
 
         private readonly ILogger<RabbitMQMessageSender> _logger;
 
 
         public RabbitMQMessageSender(IConfiguration configuration, ILogger<RabbitMQMessageSender> logger)
         {
-            _hostName = configuration["RABBITMQ_HOST"];
-            _password = configuration["RABBITMQ_PSWD"];
-            _userName = configuration["RABBITMQ_USER"];
+            _hostName           = configuration["RABBITMQ_HOST"];
+            _password           = configuration["RABBITMQ_PSWD"];
+            _userName           = configuration["RABBITMQ_USER"];
+            _rabbitQueueName    = configuration["RABBITMQ_QUEUENAME"];
+
+
+            if (ConnectionExists())
+            {
+                _channel = _connection.CreateModel();
+
+                _channel.QueueDeclare(queue: _rabbitQueueName, true, false, false, arguments: null);
+            }
 
             _logger = logger;
         }
 
-        public void SendMessage(BaseMessage message, string queueName)
+        public void SendMessage(BaseMessage message)
         {
-            if (ConnectionExists())
-            {
-                using var channel = _connection.CreateModel();
+            byte[] body = GetMessageAsByteArray(message);
 
-                channel.QueueDeclare(queue: queueName, true, false, false, arguments: null);
+            
 
-                byte[] body = GetMessageAsByteArray(message);
-
-                channel.BasicPublish(exchange: "", routingKey: queueName, basicProperties: null, body: body);
-            }
+            _channel.BasicPublish(exchange: "", routingKey: _rabbitQueueName, basicProperties: null, body: body);   
         }
 
-        private byte[] GetMessageAsByteArray(BaseMessage message)
+        private static byte[] GetMessageAsByteArray(BaseMessage message)
         {
             var options = new JsonSerializerOptions
             {
