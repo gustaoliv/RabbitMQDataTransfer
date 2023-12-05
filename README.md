@@ -1,4 +1,4 @@
 # Todo
-- [ ] Trocar banco origem para PostgreSQL
-- [ ] Adicionar suporte a docker
-- [ ] Adicionar destino como MongoDB  
+- [x] Trocar banco origem para PostgreSQL
+- [x] Adicionar suporte a docker
+- [x] Adicionar destino como MongoDB  
